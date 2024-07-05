@@ -1,79 +1,57 @@
 {
   "name": "vidstack-workspace",
-  "version": "1.5.2",
+  "version": "1.11.25",
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*",
-    "apps/*",
-    "apps/site/examples"
+    "packages/*"
   ],
   "scripts": {
-    "build": "turbo run clean && turbo run build",
-    "build:site": "turbo run build:app --filter=site",
-    "dev:site": "turbo run dev --filter=./apps/site/** --parallel",
+    "build": "turbo run analyze build types --filter=./packages/*",
+    "build:vidstack": "turbo run analyze build types --filter=vidstack",
+    "build:react": "turbo run analyze build types --filter=react",
+    "changelog": "pnpm exec git cliff --output CHANGELOG.md",
     "clean": "turbo run clean",
-    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s && node .scripts/fix-changelog.js",
-    "lint": "turbo run lint --parallel",
+    "format": "turbo run format --parallel",
     "test": "turbo run test --parallel",
-    "test:esm": "node .scripts/test-node-esm.js",
     "preinstall": "npx only-allow pnpm",
-    "prepare": "husky install",
-    "release": "turbo run build test && pnpm test:esm && node .scripts/release.js",
-    "release:dry": "pnpm release -- --dry",
-    "sandbox:foundation": "pnpm sandbox --filter foundation",
-    "sandbox:player": "pnpm sandbox --filter player",
-    "spellcheck": "cspell 'apps/**/*.md' 'packages/**.ts', 'packages/**/.md', '*.md' --gitignore --cache",
-    "validate": "turbo run build lint test && pnpm test:esm"
+    "release": "pnpm build && node .scripts/release.js --next",
+    "release:dry": "pnpm run release --dry",
+    "validate": "turbo run build format test"
   },
   "devDependencies": {
-    "@commitlint/cli": "^16.2.3",
-    "@commitlint/config-conventional": "^16.2.1",
-    "@types/node": "^17.0.8",
-    "@typescript-eslint/eslint-plugin": "^4.28.4",
-    "@typescript-eslint/parser": "^4.24.0",
-    "chokidar": "^3.5.2",
-    "conventional-changelog-cli": "^2.2.2",
-    "cross-env": "^7.0.3",
-    "cspell": "^5.15.2",
-    "enquirer": "^2.3.6",
-    "esbuild": "^0.14.29",
-    "eslint": "^7.17.0",
-    "eslint-config-prettier": "^8.1.0",
-    "eslint-import-resolver-typescript": "^2.5.0",
-    "eslint-plugin-import": "^2.25.4",
-    "eslint-plugin-lit": "^1.3.0",
-    "eslint-plugin-simple-import-sort": "^7.0.0",
-    "eslint-plugin-svelte3": "^3.2.1",
-    "eslint-plugin-wc": "^1.2.0",
+    "@ianvs/prettier-plugin-sort-imports": "^4.1.0",
+    "@types/node": "^18.0.0",
+    "chokidar": "^3.5.0",
+    "enquirer": "^2.3.0",
+    "esbuild": "^0.19.4",
     "execa": "^6.0.0",
-    "fs-extra": "^10.0.0",
-    "globby": "^13.1.1",
-    "gzip-size": "^7.0.0",
-    "husky": "^7.0.0",
-    "kleur": "^4.1.4",
-    "lint-staged": "^12.1.5",
+    "fs-extra": "^11.0.0",
+    "git-cliff": "^1.4.0",
+    "globby": "^13.0.0",
+    "kleur": "^4.1.5",
+    "lint-staged": "^13.0.0",
     "minimist": "^1.2.5",
-    "npm-run-all": "^4.1.5",
-    "prettier": "^2.6.0",
-    "prettier-plugin-tailwindcss": "^0.1.7",
-    "rimraf": "^3.0.2",
-    "semver": "^7.3.5",
-    "svelte": "^3.46.4",
-    "turbo": "^1.2.4",
-    "typescript": "^4.5.4"
+    "prettier": "^3.0.0",
+    "prettier-plugin-tailwindcss": "^0.4.1",
+    "rimraf": "^3.0.0",
+    "semver": "^7.3.0",
+    "simple-git-hooks": "^2.8.0",
+    "turbo": "^1.10.14",
+    "typescript": "^5.3.0"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx --no-install lint-staged"
   },
   "lint-staged": {
-    "*.{js,ts,svelte}": "eslint --cache --fix",
-    "*.{js,ts,md,json,svelte}": "prettier --write",
-    "*.{md,ts}": "cspell --no-must-find-files"
+    "*": "prettier --write"
   },
   "engines": {
-    "node": ">=14.19.0",
-    "pnpm": ">=6"
+    "node": ">=18",
+    "pnpm": ">=8"
   },
   "volta": {
-    "node": "14.19.0"
+    "node": "18.17.1"
   },
-  "packageManager": "pnpm@6.32.3"
+  "packageManager": "pnpm@8.7.0"
 }

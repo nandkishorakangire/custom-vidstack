@@ -1,83 +1,34 @@
 {
   "$schema": "https://turborepo.org/schema.json",
-  "baseBranch": "origin/main",
   "pipeline": {
-    "build:app": {
-      "dependsOn": ["^build"],
-      "outputs": ["build/**", ".svelte-kit/**"]
-    },
     "analyze": {
-      "dependsOn": ["^build:dist", "^extract:types"],
+      "dependsOn": ["clean"],
       "outputs": [
-        "src/react/index.ts",
-        "src/react/components/**",
-        "src/svelte/{client,node}/index.ts",
-        "src/svelte/{client,node}/components/**",
-        "react/index.js",
-        "svelte/index.js",
-        "elements.json",
-        "vscode.html-data.json"
+        "dist-npm/analyze.json",
+        "dist-npm/vscode.html-data.json",
+        "dist-npm/vue.d.ts",
+        "dist-npm/svelte.d.ts",
+        "dist-npm/solid.d.ts"
       ]
     },
     "build": {
-      "dependsOn": [
-        "build:dist",
-        "build:definitions",
-        "extract:types",
-        "extract:types:react",
-        "extract:types:svelte",
-        "minify:cdn"
-      ]
+      "dependsOn": ["clean", "^build"],
+      "outputs": ["cdn/**", "dist-npm/**", "styles/**"]
     },
-    "build:dist": {
-      "dependsOn": ["analyze", "^build:dist"],
-      "outputs": ["dist/**", "dist-node/**", "dist-cdn/**", "dist-prod/**"]
-    },
-    "build:definitions": {
-      "dependsOn": ["build:types"],
-      "inputs": ["src/define/**"],
-      "outputs": ["define/**"]
-    },
-    "build:types": {
-      "dependsOn": ["analyze", "^extract:types"],
-      "outputs": ["types/**", "tsconfig.tsbuildinfo"]
-    },
-    "extract:types": {
-      "dependsOn": ["build:types"],
-      "inputs": ["types/**", "tsconfig.json"],
-      "outputs": ["index.d.ts"]
-    },
-    "extract:types:react": {
-      "dependsOn": ["build:types"],
-      "inputs": ["types/**", "tsconfig.json"],
-      "outputs": ["react/index.d.ts"]
-    },
-    "extract:types:svelte": {
-      "dependsOn": ["build:types"],
-      "inputs": ["types/**", "tsconfig.json"],
-      "outputs": ["svelte/index.d.ts"]
-    },
-    "minify:cdn": {
-      "dependsOn": ["build:dist"],
-      "inputs": ["dist-cdn/**"],
+    "build:cdn": {
       "outputs": ["dist-cdn/**"]
-    },
-    "dev": {
-      "cache": false
-    },
-    "test": {
-      "inputs": ["src/**", "tests/**", "vite.config.ts"]
     },
     "clean": {
       "cache": false
     },
-    "lint": {
-      "dependsOn": ["lint:eslint", "lint:prettier"]
+    "types": {
+      "dependsOn": ["clean"],
+      "outputs": ["types/**", "dist-npm/**/*.d.ts", "tsconfig.build.tsbuildinfo"]
     },
-    "lint:eslint": {
+    "format": {
       "inputs": ["src/**"]
     },
-    "lint:prettier": {
+    "test": {
       "inputs": ["src/**"]
     }
   }

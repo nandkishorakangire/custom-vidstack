@@ -5,9 +5,31 @@ module.exports = {
   printWidth: 100,
   tabWidth: 2,
   plugins: [
-    // `prettier-plugin-tailwindcss` also includes `prettier-plugin-svelte`
-    // @see https://github.com/sveltejs/prettier-plugin-svelte#usage-with-tailwind-prettier-plugin
-    require('prettier-plugin-tailwindcss'),
+    require.resolve('prettier-plugin-tailwindcss'),
+    require.resolve('@ianvs/prettier-plugin-sort-imports'),
   ],
-  overrides: [],
+  // Sort Imports
+  importOrder: [
+    '^clsx$',
+    '^react$',
+    '^next',
+    '',
+    '~.*icons',
+    '',
+    '.css$',
+    '',
+    '^node:',
+    '<THIRD_PARTY_MODULES>',
+    '',
+    '.webp?$',
+    '.mp4?$',
+    '',
+    '^[$]',
+    '^[../]',
+    '^(?!.*[.](png|webp|mp4)$)[./].*$',
+  ],
+  importOrderParserPlugins: ['jsx', 'typescript', 'decorators'],
+  importOrderSeparation: true,
+  importOrderSortSpecifiers: true,
+  importOrderCaseInsensitive: true,
 };

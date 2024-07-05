@@ -2,13 +2,6 @@
 
 First off, thank you for taking the time to contribute to Vidstack ❤️
 
-## 💭 Knowledge
-
-- Code is written in [TypeScript][typescript].
-- Apps are built with [SvelteKit][svelte-kit].
-- We use [Lit][lit] to build [Web Components][web-components].
-- [Turborepo][turborepo] makes our monorepo go vroom!
-
 ## 🎒 Getting Started
 
 ### Installation
@@ -39,7 +32,7 @@ make pull requests from the forked branch.
 
 ```bash
 # Add the original repository as a "remote" called "upstream".
-$: git remote add upstream git@github.com:vidstack/vidstack.git
+$: git remote add upstream git@github.com:vidstack/player.git
 
 # Fetch the git information from the remote.
 $: git fetch upstream
@@ -48,7 +41,7 @@ $: git fetch upstream
 $: git branch --set-upstream-to=upstream/main main
 
 # Run this when we want to update our version of main.
-$: git pull
+$: git pull upstream --rebase
 ```
 
 ### Node
@@ -63,10 +56,10 @@ it will automatically pin it, and if you're using `nvm` simply run `nvm use` fro
 $: pnpm i
 
 # Install dependency for a single package.
-$: pnpm install {package} --filter @vidstack/player
+$: pnpm -F vidstack install {package}
 
 # Update a dependency for a single package.
-$: pnpm up {package} --filter @vitebook/player
+$: pnpm -F react up {package}
 
 # Update a dependency for all packages.
 $: pnpm up {package}@{version} -r
@@ -78,27 +71,13 @@ $: pnpm up {package}@{version} -r
 # Build all packages (turbo)
 $: pnpm build
 
-# Build all apps (turbo)
-$: pnpm build:app
+# Build single package (turbo)
+$: pnpm build:vidstack
+$: pnpm build:react
 
-# Build single package
-$: pnpm build --filter @vidstack/player
-
-# Build single app
-$: pnpm build:app --filter vidstack.io
-
-# Build and watch single package
-$: pnpm watch --filter @vidstack/player
-```
-
-## 💻 Development
-
-```bash
-# Run workspace in dev mode (turbo)
-$: pnpm dev
-
-# Run single app in dev mode
-$: pnpm dev --filter vidstack.io
+# Build and watch single package.
+$: pnpm -F vidstack dev
+$: pnpm -F @vidstack/react dev
 ```
 
 ### Sandbox
@@ -108,33 +87,13 @@ browser. The sandbox directory is Git-ignored so you can safely do whatever you 
 it.
 
 ```bash
-# Play with `@vidstack/foundation` package in your browser.
-$: pnpm sandbox --filter @vidstack/foundation
-
-# Play with `@vidstack/player` package in your browser.
-$: pnpm sandbox --filter @vidstack/player
+# Play with package in your browser.
+$: pnpm -F vidstack sandbox
+$: pnpm -F @vidstack/react sandbox
 ```
 
 After running any of the commands above, you can find the sandbox directory at `packages/*/sandbox`.
 You can delete the directory and re-run the sandbox command to reset it.
-
-## 🧪 Testing
-
-Unit tests are located in the `tests` directory inside an app or package. Run
-`pnpm test --filter {pkg_name}` or `pnpm test:watch --filter {pkg_name}` in the terminal. This
-project uses [Vitest][vitest] for writing/running unit tests. To learn more about writing unit
-tests, follow the link to the Vitest site, and see other tests in the repo.
-
-```bash
-# Run all tests (turbo)
-$: pnpm test
-
-# Run tests in single package
-$: pnpm test --filter @vidstack/player
-
-# Run tests in watch mode for a single package
-$: pnpm test:watch --filter @vidstack/player
-```
 
 ## ✍️ Committing
 
@@ -151,12 +110,8 @@ Don't expect your PR to be accepted immediately, or accepted at all. Give the co
 vet it and see if it should be merged. Please don't be disheartened if it's not accepted. Your
 contribution is appreciated more then you can imagine, and even a failed PR can teach us a lot ❤️
 
-[lit]: https://lit.dev
 [semantic-commit-style]: https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716
-[svelte]: https://svelte.dev
-[svelte-kit]: https://kit.svelte.dev
 [turborepo]: https://turborepo.org
 [typescript]: https://www.typescriptlang.org
-[vidstack-gh]: https://github.com/vidstack/vidstack
-[vitest]: https://vitest.dev
+[vidstack-gh]: https://github.com/vidstack/player
 [web-components]: https://developer.mozilla.org/en-US/docs/Web/Web_Components

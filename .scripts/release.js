@@ -1,41 +1,36 @@
 /**
  * Thanks: https://github.com/vuejs/vue-next/blob/master/scripts/release.js
  */
-
-import kleur from 'kleur';
-import { createRequire } from 'module';
-import { fileURLToPath } from 'url';
-import { execa } from 'execa';
 import fs from 'fs';
-import minimist from 'minimist';
+import { createRequire } from 'module';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
 import prompt from 'enquirer';
+import { execa } from 'execa';
+import fsExtra from 'fs-extra';
+import kleur from 'kleur';
+import minimist from 'minimist';
 import semver from 'semver';
 
-const require = createRequire(import.meta.url);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const args = minimist(process.argv.slice(2));
-const isDryRun = args.dry;
-const skippedPackages = [];
-const currentVersion = require('../package.json').version;
-
-if (isDryRun) console.log(kleur.cyan('\n☂️  Running in dry mode...\n'));
-
-const siteExamplesDir = path.resolve(__dirname, '../apps/site/examples');
-const packagesDir = fs.readdirSync(path.resolve(__dirname, '../packages'));
-
-const packages = packagesDir.filter((p) => !p.startsWith('.'));
-
-const preId =
-  args.preid || (semver.prerelease(currentVersion) && semver.prerelease(currentVersion)[0]);
-
-const versionIncrements = [
-  'patch',
-  'minor',
-  'major',
-  ...(preId ? ['prepatch', 'preminor', 'premajor', 'prerelease'] : []),
-];
+const require = createRequire(import.meta.url),
+  __dirname = path.dirname(fileURLToPath(import.meta.url)),
+  args = minimist(process.argv.slice(2)),
+  isDryRun = args.dry,
+  isNext = args.next,
+  isCDNOnly = args.cdn,
+  skippedPackages = [],
+  currentVersion = require('../package.json').version,
+  packagesDir = fs.readdirSync(path.resolve(__dirname, '../packages')),
+  packages = packagesDir.filter((pkg) => !pkg.startsWith('.')),
+  preId =
+    args.preid || (semver.prerelease(currentVersion) && semver.prerelease(currentVersion)?.[0]),
+  versionIncrements = [
+    'patch',
+    'minor',
+    'major',
+    ...(preId ? ['prepatch', 'preminor', 'premajor', 'prerelease'] : []),
+  ];
 
 function inc(i) {
   return semver.inc(currentVersion, i, preId);
@@ -94,7 +89,7 @@ async function main() {
     await prompt.prompt({
       type: 'confirm',
       name: 'yes',
-      message: `Releasing v${targetVersion}. Confirm?`,
+      message: `Releasing v${targetVersion}${isNext ? '-next' : ''}. Confirm?`,
     })
   );
 
@@ -102,41 +97,48 @@ async function main() {
     return;
   }
 
-  // update all package versions and inter-dependencies
+  if (isCDNOnly) {
+    await publishCDN(targetVersion);
+    return;
+  }
+
   step('Updating cross dependencies...');
   updateVersions(targetVersion);
 
-  // generate changelog
-  step('Generating changelog...');
-  await run(`npm`, ['run', 'changelog']);
-
-  // publish packages
   for (const pkg of packages) {
     await publishPackage(pkg, targetVersion, runIfNotDry);
   }
 
-  // put back workspace settings
   step('Adding back workspace settings...');
   updateVersions('workspace:*');
 
-  // update lockfile
   step('Updating lockfile...');
   await run(`pnpm`, ['install']);
 
   const { stdout } = await run('git', ['diff'], { stdio: 'pipe' });
   if (stdout) {
     step('Committing changes...');
+
+    const commit = `chore(release): v${targetVersion}${isNext ? '-next' : ''}`;
     await runIfNotDry('git', ['add', '-A']);
-    await runIfNotDry('git', ['commit', '-m', `chore(release): v${targetVersion}`]);
+    await runIfNotDry('git', ['commit', '-m', commit]);
   } else {
     console.log('No changes to commit.');
   }
 
-  // push to GitHub
+  const tag = `v${targetVersion}${isNext ? '-next' : ''}`;
+  await runIfNotDry('git', ['tag', tag]);
+
+  step('Generating changelog...');
+  await run('pnpm', ['changelog']);
+  await runIfNotDry('git', ['add', '-A']);
+  await runIfNotDry('git', ['commit', '-m', 'chore(release): update changelog']);
+
   step('Pushing to GitHub...');
-  await runIfNotDry('git', ['tag', `v${targetVersion}`]);
-  await runIfNotDry('git', ['push', 'upstream', `refs/tags/v${targetVersion}`]);
+  await runIfNotDry('git', ['push', 'upstream', `refs/tags/${tag}`]);
   await runIfNotDry('git', ['push', 'upstream', 'main']);
+
+  await publishCDN(targetVersion);
 
   if (isDryRun) {
     console.log(`\nDry run finished - run git diff to see package changes.`);
@@ -155,14 +157,8 @@ async function main() {
 function updateVersions(version) {
   // 1. update root package.json
   updatePackageVersion(path.resolve(__dirname, '..'), version);
-
   // 2. update all packages
   packages.forEach((p) => updatePackageVersion(getPkgRoot(p), version));
-
-  // 3. update site example
-  if (version !== 'workspace:*') {
-    updatePackageVersion(siteExamplesDir, version);
-  }
 }
 
 function updatePackageVersion(pkgRoot, version) {
@@ -179,14 +175,17 @@ function updatePackageVersion(pkgRoot, version) {
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
 
+const workspace = new Set();
+
 function updatePackageDeps(pkg, depType, version) {
   const deps = pkg[depType];
   if (!deps) return;
   Object.keys(deps).forEach((dep) => {
-    if (dep.startsWith('@vidstack') && packages.includes(dep.replace(/^@vidstack\//, ''))) {
+    if (workspace.has(dep) || deps[dep] === 'workspace:*') {
       const color = version === 'workspace:*' ? 'cyan' : 'yellow';
       console.log(kleur[color](`🦠 ${pkg.name} -> ${depType} -> ${dep}@${version}`));
       deps[dep] = version;
+      workspace.add(dep);
     }
   });
 }
@@ -196,47 +195,23 @@ async function publishPackage(pkgName, version, runIfNotDry) {
     return;
   }
 
-  const pkgRoot = getPkgRoot(pkgName);
-  const pkgPath = path.resolve(pkgRoot, 'package.json');
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+  const pkgRoot = getPkgRoot(pkgName),
+    pkgPath = path.resolve(pkgRoot, 'package.json'),
+    pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')),
+    distDir = path.resolve(pkgRoot, 'dist-npm');
 
   if (pkg.private) {
     console.log(kleur.red(`\n🚫 Skipping private package: ${pkg.name}`));
     return;
   }
 
-  let releaseTag = null;
-  if (args.tag) {
-    releaseTag = args.tag;
-  } else if (version.includes('alpha')) {
-    releaseTag = 'alpha';
-  } else if (version.includes('beta')) {
-    releaseTag = 'beta';
-  } else if (version.includes('rc')) {
-    releaseTag = 'rc';
-  } else {
-    // TODO: Remove at 1.0 release.
-    releaseTag = 'next';
-  }
-
   step(`Publishing ${pkgName}...`);
 
   try {
     await runIfNotDry(
-      // use of yarn is intentional here as we rely on its publishing behavior.
       'yarn',
-      [
-        'publish',
-        '--new-version',
-        version,
-        ...(releaseTag ? ['--tag', releaseTag] : []),
-        '--access',
-        'public',
-      ],
-      {
-        cwd: pkgRoot,
-        stdio: 'pipe',
-      },
+      ['publish', '--new-version', version, '--tag', getReleaseTag(version), '--access', 'public'],
+      { cwd: distDir, stdio: 'pipe' },
     );
     console.log(kleur.green(`\n✅ Successfully published ${pkgName}@${version}`));
   } catch (e) {
@@ -247,6 +222,58 @@ async function publishPackage(pkgName, version, runIfNotDry) {
     }
   }
 }
+
+async function publishCDN(version) {
+  step('Publishing CDN...');
+
+  const pkgRoot = getPkgRoot('vidstack'),
+    cdnDir = path.resolve(pkgRoot, 'dist-cdn'),
+    cdnPkgPath = path.resolve(cdnDir, 'package.json');
+
+  await run('pnpm', ['run', '-F', 'vidstack', 'build:cdn']);
+
+  // Copy over styles.
+  fsExtra.copySync(path.resolve(pkgRoot, 'styles'), path.resolve(cdnDir, 'styles'));
+
+  const packageJson = {
+    name: '@vidstack/cdn',
+    version,
+    license: 'MIT',
+    type: 'module',
+    repository: { type: 'git', url: 'https://github.com/vidstack/player.git' },
+    bugs: { url: 'https://github.com/vidstack/player/issues' },
+  };
+
+  fs.writeFileSync(cdnPkgPath, JSON.stringify(packageJson, null, 2));
+
+  await runIfNotDry(
+    'yarn',
+    ['publish', '--new-version', version, '--tag', getReleaseTag(version), '--access', 'public'],
+    { cwd: cdnDir, stdio: 'pipe' },
+  );
+
+  console.log(kleur.green(`\n✅ Successfully published @vidstack/cdn@${version}`));
+}
+
+function getReleaseTag(version) {
+  let releaseTag = null;
+
+  if (args.tag) {
+    releaseTag = args.tag;
+  } else if (version.includes('alpha')) {
+    releaseTag = 'alpha';
+  } else if (version.includes('beta')) {
+    releaseTag = 'beta';
+  } else if (version.includes('rc')) {
+    releaseTag = 'rc';
+  } else {
+    releaseTag = isNext ? 'next' : 'latest';
+  }
+
+  return releaseTag;
+}
+
+if (isDryRun) console.log(kleur.cyan('\n☂️  Running in dry mode...\n'));
 
 main().catch((err) => {
   console.error(err);

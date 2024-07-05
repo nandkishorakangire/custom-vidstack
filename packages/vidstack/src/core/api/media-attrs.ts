@@ -1,0 +1,35 @@
+import type { MediaState } from './player-state';
+
+export const MEDIA_ATTRIBUTES = Symbol(__DEV__ ? 'MEDIA_ATTRIBUTES' : 0);
+
+export const mediaAttributes: (keyof MediaState)[] = [
+  'autoPlay',
+  'canAirPlay',
+  'canFullscreen',
+  'canGoogleCast',
+  'canLoad',
+  'canLoadPoster',
+  'canPictureInPicture',
+  'canPlay',
+  'canSeek',
+  'ended',
+  'fullscreen',
+  'isAirPlayConnected',
+  'isGoogleCastConnected',
+  'live',
+  'liveEdge',
+  'loop',
+  'mediaType',
+  'muted',
+  'paused',
+  'pictureInPicture',
+  'playing',
+  'playsInline',
+  'remotePlaybackState',
+  'remotePlaybackType',
+  'seeking',
+  'started',
+  'streamType',
+  'viewType',
+  'waiting',
+];
